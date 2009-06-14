@@ -73,6 +73,16 @@ def is_authenticated(consumer, connection, access_token):
         return json
     return False
 
+def friends_timeline(consumer, connection, access_token):
+    """Get 20 most recent tweets from user and friends.
+    Return result as JSON.
+
+    http://apiwiki.twitter.com/Twitter-REST-API-Method%3A-statuses-friends_timeline"""
+    oauth_request = request_oauth_resource(consumer,
+                                           TWITTER_FRIENDS_TIMELINE,
+                                           access_token)
+    return fetch_response(oauth_request, connection)
+
 def update_status(consumer, connection, access_token, status):
     """Update twitter status, i.e., post a tweet"""
     oauth_request = request_oauth_resource(consumer,
