@@ -14,6 +14,12 @@ CONSUMER_SECRET = getattr(settings, 'CONSUMER_SECRET', 'YOUR_SECRET')
 
 # We use this URL to check if Twitters oAuth worked
 TWITTER_CHECK_AUTH = 'https://twitter.com/account/verify_credentials.json'
+# Timeline Methods
+TWITTER_PUBLIC_TIMELINE = "https://twitter.com/statuses/public_timeline.json"
+TWITTER_FRIENDS_TIMELINE = "https://twitter.com/statuses/friends_timeline.json"
+# Status Methods
+TWITTER_UPDATE_STATUS = 'https://twitter.com/statuses/update.json'
+# User Methods
 TWITTER_FRIENDS = 'https://twitter.com/statuses/friends.json'
 
 def request_oauth_resource(consumer, url, access_token, parameters=None, signature_method=signature_method, http_method="GET"):
