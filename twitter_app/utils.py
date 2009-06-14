@@ -73,12 +73,6 @@ def is_authenticated(consumer, connection, access_token):
         return json
     return False
 
-def get_friends(consumer, connection, access_token, page=0):
-    """Get friends on Twitter"""
-    oauth_request = request_oauth_resource(consumer, TWITTER_FRIENDS, access_token, {'page': page})
-    json = fetch_response(oauth_request, connection)
-    return json
-
 def update_status(consumer, connection, access_token, status):
     """Update twitter status, i.e., post a tweet"""
     oauth_request = request_oauth_resource(consumer,
@@ -86,5 +80,11 @@ def update_status(consumer, connection, access_token, status):
                                            access_token,
                                            {'status': status},
                                            http_method='POST')
+    json = fetch_response(oauth_request, connection)
+    return json
+
+def get_friends(consumer, connection, access_token, page=0):
+    """Get friends on Twitter"""
+    oauth_request = request_oauth_resource(consumer, TWITTER_FRIENDS, access_token, {'page': page})
     json = fetch_response(oauth_request, connection)
     return json
