@@ -1,6 +1,6 @@
 import oauth
 from django.conf import settings
-
+import exceptions
 
 signature_method = oauth.OAuthSignatureMethod_HMAC_SHA1()
 
@@ -22,6 +22,15 @@ TWITTER_UPDATE_STATUS = 'https://twitter.com/statuses/update.json'
 # User Methods
 TWITTER_FRIENDS = 'https://twitter.com/statuses/friends.json'
 
+class TwitterException(exceptions.Exception):
+    """If a call to Twitter's RESTful API returns anything other than "200 OK,"
+    raise this exception to pass the HTTP status and payload to the caller."""
+    def __init__(self, status, reason, payload):
+        self.args = (status, reason, payload)
+        self.status = status
+        self.reason = reason
+        self.payload = payload
+
 def request_oauth_resource(consumer, url, access_token, parameters=None, signature_method=signature_method, http_method="GET"):
     """
     usage: request_oauth_resource( consumer, '/url/', your_access_token, parameters=dict() )
@@ -33,12 +42,13 @@ def request_oauth_resource(consumer, url, access_token, parameters=None, signatu
     oauth_request.sign_request(signature_method, consumer, access_token)
     return oauth_request
 
-
 def fetch_response(oauth_request, connection):
     url = oauth_request.to_url()
     connection.request(oauth_request.http_method, url)
     response = connection.getresponse()
     s = response.read()
+    if response.status != 200:
+        raise TwitterException(response.status, response.reason, s)
     return s
 
 def get_unauthorised_request_token(consumer, connection, signature_method=signature_method):
@@ -49,7 +59,6 @@ def get_unauthorised_request_token(consumer, connection, signature_method=signat
     resp = fetch_response(oauth_request, connection)
     token = oauth.OAuthToken.from_string(resp)
     return token
-
 
 def get_authorisation_url(consumer, token, signature_method=signature_method):
     oauth_request = oauth.OAuthRequest.from_consumer_and_token(
@@ -77,7 +86,8 @@ def friends_timeline(consumer, connection, access_token):
     """Get 20 most recent tweets from user and friends.
     Return result as JSON.
 
-    http://apiwiki.twitter.com/Twitter-REST-API-Method%3A-statuses-friends_timeline"""
+    http://apiwiki.twitter.com/Twitter-REST-API-Method%3A-statuses-friends_timeline
+    """
     oauth_request = request_oauth_resource(consumer,
                                            TWITTER_FRIENDS_TIMELINE,
                                            access_token)
