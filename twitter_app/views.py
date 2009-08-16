@@ -1,4 +1,4 @@
-import oauth, httplib, time, datetime
+import oauth, time, datetime
 
 try:
     import simplejson
@@ -18,7 +18,6 @@ from django.core.urlresolvers import reverse
 from twitter_app.utils import *
 
 CONSUMER = oauth.OAuthConsumer(CONSUMER_KEY, CONSUMER_SECRET)
-CONNECTION = httplib.HTTPSConnection(SERVER)
 
 
 def main(request):
@@ -32,26 +31,44 @@ def unauth(request):
     request.session.clear()
     return response
 
-def auth(request):
+def auth(request, success_view, failure_view):
     "/auth/"
-    token = get_unauthorised_request_token(CONSUMER, CONNECTION)
-    auth_url = get_authorisation_url(CONSUMER, token)
-    response = HttpResponseRedirect(auth_url)
-    request.session['unauthed_token'] = token.to_string()   
-    return response
+    try:
+        token = get_unauthorised_request_token(CONSUMER)
+        auth_url = get_authorisation_url(CONSUMER, token)
+        request.session['unauthed_token'] = token.to_string()   
 
-def return_(request):
+        return HttpResponseRedirect(auth_url)
+
+    except:
+        return HttpResponseRedirect(reverse(failure_view) + '?error=httpauth')
+
+def return_(request, success_view, failure_view):
     "/return/"
     unauthed_token = request.session.get('unauthed_token', None)
     if not unauthed_token:
-        return HttpResponse("No un-authed token cookie")
+        return HttpResponseRedirect(reverse(failure_view) + '?error=session')
+
     token = oauth.OAuthToken.from_string(unauthed_token)   
     if token.key != request.GET.get('oauth_token', 'no-token'):
-        return HttpResponse("Something went wrong! Tokens do not match")
-    access_token = exchange_request_token_for_access_token(CONSUMER, CONNECTION, token)
-    response = HttpResponseRedirect(reverse('twitter_oauth_friend_list'))
-    request.session['access_token'] = access_token.to_string()
-    return response
+        return HttpResponseRedirect(reverse(failure_view) + '?error=match')
+
+    try:
+        access_token = exchange_request_token_for_access_token(CONSUMER, token)
+        request.session['access_token'] = access_token.to_string()
+
+        # Check if the token works on Twitter
+        auth = is_authenticated(CONSUMER, access_token)
+        if auth:
+            # Load the credidentials from Twitter into JSON
+            creds = simplejson.loads(auth)
+
+            request.session['twitter_name'] = creds['screen_name']
+            return HttpResponseRedirect(reverse(success_view))
+    except:
+        pass
+
+    return HttpResponseRedirect(reverse(failure_view) + '?error=return')
 
 def friend_list(request):
     users = []
@@ -62,7 +79,7 @@ def friend_list(request):
     token = oauth.OAuthToken.from_string(access_token)   
     
     # Check if the token works on Twitter
-    auth = is_authenticated(CONSUMER, CONNECTION, token)
+    auth = is_authenticated(CONSUMER, token)
     if auth:
         # Load the credidentials from Twitter into JSON
         creds = simplejson.loads(auth)
@@ -77,7 +94,7 @@ def friend_list(request):
         
         
         for page in range(pages):
-            friends = get_friends(CONSUMER, CONNECTION, token, page+1)
+            friends = get_friends(CONSUMER, token, page+1)
             
             # if the result is '[]', we've reached the end of the users friends
             if friends == '[]': break

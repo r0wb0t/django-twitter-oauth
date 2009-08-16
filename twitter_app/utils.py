@@ -21,6 +21,7 @@ TWITTER_FRIENDS_TIMELINE = "https://twitter.com/statuses/friends_timeline.json"
 TWITTER_UPDATE_STATUS = 'https://twitter.com/statuses/update.json'
 # User Methods
 TWITTER_FRIENDS = 'https://twitter.com/statuses/friends.json'
+TWITTER_FOLLOWERS = 'https://twitter.com/statuses/followers.json'
 
 class TwitterException(exceptions.Exception):
     """If a call to Twitter's RESTful API returns anything other than "200 OK,"
@@ -42,8 +43,11 @@ def request_oauth_resource(consumer, url, access_token, parameters=None, signatu
     oauth_request.sign_request(signature_method, consumer, access_token)
     return oauth_request
 
-def fetch_response(oauth_request, connection):
+
+def fetch_response(oauth_request):
     url = oauth_request.to_url()
+
+    connection = httplib.HTTPSConnection(SERVER)
     connection.request(oauth_request.http_method, url)
     response = connection.getresponse()
     s = response.read()
@@ -51,12 +55,12 @@ def fetch_response(oauth_request, connection):
         raise TwitterException(response.status, response.reason, s)
     return s
 
-def get_unauthorised_request_token(consumer, connection, signature_method=signature_method):
+def get_unauthorised_request_token(consumer, signature_method=signature_method):
     oauth_request = oauth.OAuthRequest.from_consumer_and_token(
         consumer, http_url=REQUEST_TOKEN_URL
     )
     oauth_request.sign_request(signature_method, consumer, None)
-    resp = fetch_response(oauth_request, connection)
+    resp = fetch_response(oauth_request)
     token = oauth.OAuthToken.from_string(resp)
     return token
 
@@ -67,22 +71,22 @@ def get_authorisation_url(consumer, token, signature_method=signature_method):
     oauth_request.sign_request(signature_method, consumer, token)
     return oauth_request.to_url()
 
-def exchange_request_token_for_access_token(consumer, connection, request_token, signature_method=signature_method):
+def exchange_request_token_for_access_token(consumer, request_token, signature_method=signature_method):
     oauth_request = oauth.OAuthRequest.from_consumer_and_token(
         consumer, token=request_token, http_url=ACCESS_TOKEN_URL
     )
     oauth_request.sign_request(signature_method, consumer, request_token)
-    resp = fetch_response(oauth_request, connection)
+    resp = fetch_response(oauth_request)
     return oauth.OAuthToken.from_string(resp) 
 
-def is_authenticated(consumer, connection, access_token):
+def is_authenticated(consumer, access_token):
     oauth_request = request_oauth_resource(consumer, TWITTER_CHECK_AUTH, access_token)
-    json = fetch_response(oauth_request, connection)
+    json = fetch_response(oauth_request)
     if 'screen_name' in json:
         return json
     return False
 
-def friends_timeline(consumer, connection, access_token):
+def friends_timeline(consumer, access_token):
     """Get 20 most recent tweets from user and friends.
     Return result as JSON.
 
@@ -91,20 +95,26 @@ def friends_timeline(consumer, connection, access_token):
     oauth_request = request_oauth_resource(consumer,
                                            TWITTER_FRIENDS_TIMELINE,
                                            access_token)
-    return fetch_response(oauth_request, connection)
+    return fetch_response(oauth_request)
 
-def update_status(consumer, connection, access_token, status):
+def update_status(consumer, access_token, status):
     """Update twitter status, i.e., post a tweet"""
     oauth_request = request_oauth_resource(consumer,
                                            TWITTER_UPDATE_STATUS,
                                            access_token,
                                            {'status': status},
                                            http_method='POST')
-    json = fetch_response(oauth_request, connection)
+    json = fetch_response(oauth_request)
     return json
 
-def get_friends(consumer, connection, access_token, page=0):
+def get_friends(consumer, access_token, page=0):
     """Get friends on Twitter"""
     oauth_request = request_oauth_resource(consumer, TWITTER_FRIENDS, access_token, {'page': page})
-    json = fetch_response(oauth_request, connection)
+    json = fetch_response(oauth_request)
+    return json
+    
+def get_followers(consumer, access_token, page=0):
+    """Get friends on Twitter"""
+    oauth_request = request_oauth_resource(consumer, TWITTER_FOLLOWERS, access_token, {'page': page})
+    json = fetch_response(oauth_request)
     return json
